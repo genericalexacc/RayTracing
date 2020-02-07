@@ -156,6 +156,8 @@ inline vec3 unit_vector(vec3 v){
     return v / v.length();
 }
 
+
+
 class ray{
 public:
     ray(){}
@@ -181,10 +183,13 @@ public:
 //    }
 //}
 
+class material;
+
 struct hit_record{
     float t;
     vec3 p;
     vec3 normal;
+    material *mat_ptr;
 };
 
 class hitable{
@@ -192,13 +197,59 @@ public:
     virtual bool hit(const ray& r, float t_min, float t_max, hit_record& rec) const = 0;
 };
 
+inline double random_double() {
+    return rand() / (RAND_MAX + 1.0);
+}
+
+vec3 random_in_unit_sphere(){
+    vec3 p;
+    do {
+        p = 2.0 * vec3(random_double(), random_double(), random_double()) - vec3(1,1,1);
+    }while (p.squaredLength() >= 1.0);
+    return p;
+}
+
+class material{
+public:
+    virtual bool scatter(const ray& r_in, const hit_record& rec, vec3& attenuation, ray& scattered) const = 0;
+};
+
+class lambertian : public material{
+public:
+    lambertian(const vec3& a) : albedo(a) {}
+    virtual bool scatter(const ray &r_in, const hit_record &rec, vec3 &attenuation, ray &scattered) const {
+        vec3 target = rec.p + rec.normal + random_in_unit_sphere();
+        scattered = ray(rec.p, target-rec.p);
+        attenuation = albedo;
+        return true;
+    }
+    vec3 albedo;
+};
+
+vec3 reflect(const vec3& v, const vec3& n){
+    return v - 2*dot(v, n) * n;
+}
+
+class metal : public material {
+public:
+    metal(const vec3& a) : albedo(a) {}
+    virtual bool scatter(const ray &r_in, const hit_record &rec, vec3 &attenuation, ray &scattered) const {
+        vec3 reflected = reflect(unit_vector(r_in.direction()), rec.normal);
+        scattered = ray(rec.p, reflected);
+        attenuation = albedo;
+        return (dot(scattered.direction(), rec.normal) > 0);
+    }
+    vec3 albedo;
+};
+
 class sphere : public hitable{
 public:
     sphere(){}
-    sphere(vec3 cen, float r) : center(cen), radius(r) {};
+    sphere(vec3 cen, float r, material *m) : center(cen), radius(r), mat_ptr(m) {};
     virtual bool hit(const ray& r, float t_min, float t_max, hit_record& rec) const;
     vec3 center;
     float radius;
+    material *mat_ptr;
 };
 
 bool sphere::hit(const ray& r, float t_min, float t_max, hit_record& rec) const {
@@ -213,6 +264,7 @@ bool sphere::hit(const ray& r, float t_min, float t_max, hit_record& rec) const 
             rec.t = temp;
             rec.p = r.point_at_parameter(rec.t);
             rec.normal = (rec.p - center) / radius;
+            rec.mat_ptr = mat_ptr;
             return true;
         }
         temp = (-b + sqrt(discriminant))/a;
@@ -220,6 +272,7 @@ bool sphere::hit(const ray& r, float t_min, float t_max, hit_record& rec) const 
             rec.t = temp;
             rec.p = r.point_at_parameter(rec.t);
             rec.normal = (rec.p - center) / radius;
+            rec.mat_ptr = mat_ptr;
             return true;
         }
     }
@@ -249,32 +302,6 @@ bool hitable_list::hit(const ray& r, float t_min, float t_max, hit_record& rec) 
     return hit_anything;
 }
 
-inline double random_double() {
-    return rand() / (RAND_MAX + 1.0);
-}
-
-vec3 random_in_unit_sphere(){
-    vec3 p;
-    do {
-        p = 2.0 * vec3(random_double(), random_double(), random_double()) - vec3(1,1,1);
-    }while (p.squaredLength() >= 1.0);
-    return p;
-}
-
-vec3 color(const ray& r, hitable *world){
-    hit_record rec;
-    if(world -> hit(r, 0.001, MAXFLOAT, rec)){
-        vec3 target = rec.p + rec.normal + random_in_unit_sphere();
-        return 0.5 * color(ray(rec.p, target-rec.p), world);
-    }else{
-        //weird fix?
-//        vec3 unit_direction = unit_vector(r.direction());
-        vec3 unit_direction = r.direction();
-        float t = 0.5 * (unit_direction.y() + 1.0);
-        return (1.0-t)*vec3(1.0, 1.0, 1.0) + t*vec3(0.5, 0.7, 1.0);
-    }
-}
-
 class camera{
 public:
     camera(){
@@ -296,9 +323,29 @@ public:
     vec3 vertical;
 };
 
+
+vec3 color(const ray& r, hitable *world, int depth){
+    hit_record rec;
+    if(world -> hit(r, 0.001, MAXFLOAT, rec)){
+        ray scattered;
+        vec3 attenuation;
+        if(depth < 50 && rec.mat_ptr->scatter(r, rec, attenuation, scattered)){
+            return attenuation*color(scattered, world, depth+1);
+        }else{
+            return vec3(0,0,0);
+        }
+    }else{
+        vec3 unit_direction = unit_vector(r.direction());
+        float t = 0.5 * (unit_direction.y() + 1.0);
+        return (1.0-t)*vec3(1.0, 1.0, 1.0) + t*vec3(0.5, 0.7, 1.0);
+    }
+}
+
+
+
 int main(int argc, const char * argv[]) {
-    int nx = 200;
-    int ny = 100;
+    int nx = 400;
+    int ny = 200;
     int ns = 100;
     
     ofstream myfile;
@@ -306,10 +353,10 @@ int main(int argc, const char * argv[]) {
     myfile << "P3\n" << nx << " " << ny << "\n255\n";
     
     hitable *list[4];
-    list[0] = new sphere(vec3(0, 0, -1), 0.5);
-    list[1] = new sphere(vec3(0, -100.5, -1), 100);
-    list[2] = new sphere(vec3(1,0,-1), 0.5);
-    list[3] = new sphere(vec3(-1,0,-1), 0.5);
+    list[0] = new sphere(vec3(0, 0, -1), 0.5, new lambertian(vec3(0.8, 0.3, 0.3)));
+    list[1] = new sphere(vec3(0, -100.5, -1), 100, new lambertian(vec3(0.8, 0.8, 0.3)));
+    list[2] = new sphere(vec3(1,0,-1), 0.5, new metal(vec3(0.8, 0.6, 0.2)));
+    list[3] = new sphere(vec3(-1,0,-1), 0.5, new lambertian(vec3(0.8, 0.8, 0.8)));
     
     hitable *world = new hitable_list(list, 4);
     camera cam;
@@ -321,7 +368,7 @@ int main(int argc, const char * argv[]) {
                 float u = float(i + random_double()) / float(nx);
                 float v = float(j + random_double()) / float(ny);
                 ray r = cam.get_ray(u, v);
-                col += color(r, world);
+                col += color(r, world, 0);
             }
             col /= float(ns);
             col = vec3(sqrt(col[0]), sqrt(col[1]), sqrt(col[2]));
