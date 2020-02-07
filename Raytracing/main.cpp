@@ -8,8 +8,13 @@
 
 #include <iostream>
 #include <math.h>
+#include "float.h"
+
 #include <stdlib.h>
 #include <fstream>
+#include <cstdlib>
+
+
 
 using namespace std;
 
@@ -61,12 +66,12 @@ inline std::ostream& operator>>(std::ostream &os, vec3 &t){
 }
 
 inline void vec3::make_unit_vector(){
-    float k = 1.0 / sqrt(e[0]*e[0]+e[1]*e[1]+e[2]*e[2]);
+    float k = 1.0 / sqrt(e[0]*e[0] + e[1]*e[1] + e[2]*e[2]);
     e[0] *= k; e[1] *= k; e[2] *= k;
 }
 
 inline vec3 operator+(const vec3 &v1, const vec3 &v2){
-    return vec3(v1[0]+v2.e[0], v1.e[1]+v2.e[1], v1.e[2]+v2.e[2]);
+    return vec3(v1.e[0]+v2.e[0], v1.e[1]+v2.e[1], v1.e[2]+v2.e[2]);
 }
 
 inline vec3 operator-(const vec3 &v1, const vec3 &v2){
@@ -81,20 +86,20 @@ inline vec3 operator/(const vec3 &v1, const vec3 &v2){
     return vec3(v1.e[0]/v2.e[0], v1.e[1]/v2.e[1], v1.e[2]/v2.e[2]);
 }
 
-inline vec3 operator*(float t, const vec3 &v2){
-    return vec3(t*v2.e[0], t*v2.e[1], t*v2.e[2]);
+inline vec3 operator*(float t, const vec3 &v){
+    return vec3(t*v.e[0], t*v.e[1], t*v.e[2]);
 }
 
-inline vec3 operator/(const vec3 &v2, float t){
-    return vec3(v2.e[0]/t, v2.e[1]/t, v2.e[2]/t);
+inline vec3 operator/(const vec3 &v, float t){
+    return vec3(v.e[0]/t, v.e[1]/t, v.e[2]/t);
 }
 
-inline vec3 operator*(const vec3 &v2, float t){
-    return vec3(v2.e[0]*t, v2.e[1]*t, v2.e[2]*t);
+inline vec3 operator*(const vec3 &v, float t){
+    return vec3(v.e[0]*t, v.e[1]*t, v.e[2]*t);
 }
 
 inline float dot(const vec3 &v1, const vec3 &v2){
-    return v1.e[0]*v2.e[0]+v1.e[1]*v2.e[1]+v2.e[2]*v2.e[2];
+    return v1.e[0]*v2.e[0] + v1.e[1]*v2.e[1] + v1.e[2]*v2.e[2];
 }
 
 inline vec3 cross(const vec3 &v1, const vec3 &v2){
@@ -124,17 +129,18 @@ inline vec3& vec3::operator*=(const vec3 &v){
     return *this;
 }
 
-inline vec3& vec3::operator/=(const vec3 &v){
-    e[0] /= v.e[0];
-    e[1] /= v.e[1];
-    e[2] /= v.e[2];
-    return *this;
-}
 
 inline vec3& vec3::operator*=(const float t){
     e[0] *= t;
     e[1] *= t;
     e[2] *= t;
+    return *this;
+}
+
+inline vec3& vec3::operator/=(const vec3 &v){
+    e[0] /= v.e[0];
+    e[1] /= v.e[1];
+    e[2] /= v.e[2];
     return *this;
 }
 
@@ -156,24 +162,24 @@ public:
     ray(const vec3& a, const vec3& b){ A = a; B = b; }
     vec3 origin() const { return A; }
     vec3 direction() const { return B; }
-    vec3 point_at_parameter(float t) const {return A + t * B; }
+    vec3 point_at_parameter(float t) const {return A + t*B; }
     
     vec3 A;
     vec3 B;
 };
 
-bool hit_sphere(const vec3& center, float radius, const ray& r){
-    vec3 oc = r.origin() - center;
-    float a = dot(r.direction(), r.direction());
-    float b = 2.0 * dot(oc, r.direction());
-    float c = dot(oc, oc) - radius*radius;
-    float discriminant = b*b - 4*a*c;
-    if (discriminant < 0) {
-        return -1.0;
-    }else{
-        return (-b - sqrt(discriminant)) / (2.0 * a);
-    }
-}
+//bool hit_sphere(const vec3& center, float radius, const ray& r){
+//    vec3 oc = r.origin() - center;
+//    float a = dot(r.direction(), r.direction());
+//    float b = 2.0 * dot(oc, r.direction());
+//    float c = dot(oc, oc) - radius*radius;
+//    float discriminant = b*b - 4*a*c;
+//    if (discriminant < 0) {
+//        return -1.0;
+//    }else{
+//        return (-b - sqrt(discriminant)) / (2.0 * a);
+//    }
+//}
 
 struct hit_record{
     float t;
@@ -183,10 +189,10 @@ struct hit_record{
 
 class hitable{
 public:
-    virtual bool hit(const ray& r, float t_min, float t_max, hit_record& rec) = 0;
+    virtual bool hit(const ray& r, float t_min, float t_max, hit_record& rec) const = 0;
 };
 
-class sphere : hitable{
+class sphere : public hitable{
 public:
     sphere(){}
     sphere(vec3 cen, float r) : center(cen), radius(r) {};
@@ -202,14 +208,14 @@ bool sphere::hit(const ray& r, float t_min, float t_max, hit_record& rec) const 
     float c = dot(oc, oc) - radius*radius;
     float discriminant = b*b - a*c;
     if (discriminant > 0) {
-        float temp = (-b - sqrt(b*b-a*c))/a;
+        float temp = (-b - sqrt(discriminant))/a;
         if(temp < t_max && temp > t_min){
             rec.t = temp;
             rec.p = r.point_at_parameter(rec.t);
             rec.normal = (rec.p - center) / radius;
             return true;
         }
-        temp = (-b + sqrt(b*b-a*c))/a;
+        temp = (-b + sqrt(discriminant))/a;
         if(temp < t_max && temp > t_min){
             rec.t = temp;
             rec.p = r.point_at_parameter(rec.t);
@@ -217,19 +223,19 @@ bool sphere::hit(const ray& r, float t_min, float t_max, hit_record& rec) const 
             return true;
         }
     }
-    return (-b - sqrt(discriminant)) / (2.0 * a);
+    return false;
 };
 
 class hitable_list: public hitable{
 public:
     hitable_list(){};
     hitable_list(hitable **l, int n){list = l; list_size = n;}
-    virtual bool hit(const ray &r, float t_min, float t_max, hit_record &rec) const;
+    virtual bool hit(const ray& r, float t_min, float t_max, hit_record& rec) const;
     hitable **list;
     int list_size;
 };
 
-bool hitable_list::hit(const ray &r, float t_min, float t_max, hit_record &rec) const{
+bool hitable_list::hit(const ray& r, float t_min, float t_max, hit_record& rec) const{
     hit_record temp_rec;
     bool hit_anything = false;
     double closest_so_far = t_max;
@@ -243,35 +249,82 @@ bool hitable_list::hit(const ray &r, float t_min, float t_max, hit_record &rec) 
     return hit_anything;
 }
 
-vec3 color(const ray& r){
-    float t = hit_sphere(vec3(0,0,-1), 0.5, r);
-    if (t > 0.0) {
-        vec3 N = unit_vector(r.point_at_parameter(t) - vec3(0,0,-1));
-        return 0.5 * vec3(N.x()+1, N.y()+1, N.z()+1);
-    }
-    vec3 unit_direction = unit_vector(r.direction());
-    t = 0.5 * (unit_direction.y() + 1.0);
-    return (1.0-t)*vec3(1.0, 1.0, 1.0) + t*vec3(0.5, 0.7, 1.0);
+inline double random_double() {
+    return rand() / (RAND_MAX + 1.0);
 }
+
+vec3 random_in_unit_sphere(){
+    vec3 p;
+    do {
+        p = 2.0 * vec3(random_double(), random_double(), random_double()) - vec3(1,1,1);
+    }while (p.squaredLength() >= 1.0);
+    return p;
+}
+
+vec3 color(const ray& r, hitable *world){
+    hit_record rec;
+    if(world -> hit(r, 0.001, MAXFLOAT, rec)){
+        vec3 target = rec.p + rec.normal + random_in_unit_sphere();
+        return 0.5 * color(ray(rec.p, target-rec.p), world);
+    }else{
+        //weird fix?
+//        vec3 unit_direction = unit_vector(r.direction());
+        vec3 unit_direction = r.direction();
+        float t = 0.5 * (unit_direction.y() + 1.0);
+        return (1.0-t)*vec3(1.0, 1.0, 1.0) + t*vec3(0.5, 0.7, 1.0);
+    }
+}
+
+class camera{
+public:
+    camera(){
+        lower_left_corner = vec3 (-2.0, -1.0, -1.0);
+        horizontal = vec3 (4.0, 0.0, 0.0);
+        vertical = vec3(0.0, 2.0, 0.0);
+        origin = vec3(0.0, 0.0, 0.0);
+    }
+    
+    ray get_ray(float u, float v){
+        auto r = ray(origin,
+                     lower_left_corner + u*horizontal + v*vertical - origin);
+        return r;
+    }
+    
+    vec3 origin;
+    vec3 lower_left_corner;
+    vec3 horizontal;
+    vec3 vertical;
+};
 
 int main(int argc, const char * argv[]) {
     int nx = 200;
     int ny = 100;
+    int ns = 100;
+    
     ofstream myfile;
     myfile.open ("/Users/alexandershevchenko/Desktop/out.ppm");
     myfile << "P3\n" << nx << " " << ny << "\n255\n";
-    vec3 lower_left_corner(-2.0, -1.0, -1.0);
-    vec3 horizontal(4.0, 0.0, 0.0);
-    vec3 vertical(0.0, 2.0, 0.0);
-    vec3 origin(0.0, 0.0, 0.0);
+    
+    hitable *list[4];
+    list[0] = new sphere(vec3(0, 0, -1), 0.5);
+    list[1] = new sphere(vec3(0, -100.5, -1), 100);
+    list[2] = new sphere(vec3(1,0,-1), 0.5);
+    list[3] = new sphere(vec3(-1,0,-1), 0.5);
+    
+    hitable *world = new hitable_list(list, 4);
+    camera cam;
+    
     for (int j = ny - 1; j >= 0; j--) {
         for (int i = 0; i < nx; i++) {
-            float u = float(i) / float(nx);
-            float v = float(j) / float(ny);
-            
-            ray r(origin, lower_left_corner + u*horizontal + v*vertical);
-            
-            vec3 col = color(r);
+            vec3 col(0, 0, 0);
+            for (int s = 0; s < ns; s++) {
+                float u = float(i + random_double()) / float(nx);
+                float v = float(j + random_double()) / float(ny);
+                ray r = cam.get_ray(u, v);
+                col += color(r, world);
+            }
+            col /= float(ns);
+            col = vec3(sqrt(col[0]), sqrt(col[1]), sqrt(col[2]));
             
             int ir = int(255.99*col[0]);
             int ig = int(255.99*col[1]);
