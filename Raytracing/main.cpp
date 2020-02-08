@@ -60,7 +60,7 @@ inline std::istream& operator>>(std::istream &is, vec3 &t){
     return is;
 }
 
-inline std::ostream& operator>>(std::ostream &os, vec3 &t){
+inline std::ostream& operator<<(std::ostream &os, vec3 &t){
     os << t.e[0] << " " << t.e[1] << " " << t.e[2];
     return os;
 }
@@ -104,7 +104,7 @@ inline float dot(const vec3 &v1, const vec3 &v2){
 
 inline vec3 cross(const vec3 &v1, const vec3 &v2){
     return vec3( (v1.e[1] * v2.e[2] - v1.e[2] * v2.e[1]),
-                (v1.e[0] * v2.e[2] - v1.e[2] * v2.e[0]),
+                (v1.e[2] * v2.e[0] - v1.e[0] * v2.e[2]),
                 (v1.e[0] * v2.e[1] - v1.e[1] * v2.e[0]));
 }
 
@@ -115,7 +115,7 @@ inline vec3& vec3::operator+=(const vec3 &v){
     return *this;
 }
 
-inline vec3& vec3::operator-=(const vec3 &v){
+inline vec3& vec3::operator-=(const vec3& v){
     e[0] -= v.e[0];
     e[1] -= v.e[1];
     e[2] -= v.e[2];
@@ -362,22 +362,42 @@ bool hitable_list::hit(const ray& r, float t_min, float t_max, hit_record& rec) 
     return hit_anything;
 }
 
+vec3 rand_in_unit_disk(){
+    vec3 p;
+    do {
+        p = 2.0 * vec3(random_double(), random_double(), 0) - vec3(1,1,0);
+    }while (p.squaredLength() >= 1.0);
+    return p;
+}
+
 class camera{
 public:
-    camera(){
-        lower_left_corner = vec3 (-2.0, -1.0, -1.0);
-        horizontal = vec3 (4.0, 0.0, 0.0);
-        vertical = vec3(0.0, 2.0, 0.0);
-        origin = vec3(0.0, 0.0, 0.0);
+    camera(vec3 look_from, vec3 look_at, vec3 vup, float vfov, float aspect, float aperture, float focus_dist){
+        lens_radius = aperture / 2;
+        
+        float theta = vfov * M_PI/180;
+        float half_height = tan(theta / 2);
+        float half_width = aspect * half_height;
+        origin = look_from;
+        w = unit_vector(look_from - look_at);
+        u = unit_vector(cross(vup, w));
+        v = cross(w, u);
+        lower_left_corner = origin - half_width * focus_dist * u - half_height * focus_dist * v - w * focus_dist;
+        horizontal = 2 * half_width * focus_dist * u;
+        vertical = 2 * half_height * focus_dist * v;
     }
     
-    ray get_ray(float u, float v){
-        auto r = ray(origin,
-                     lower_left_corner + u*horizontal + v*vertical - origin);
+    ray get_ray(float s, float t){
+        vec3 rd = lens_radius*rand_in_unit_disk();
+        vec3 offset = u * rd.x() + v * rd.y();
+        auto r = ray(origin + offset,
+                     lower_left_corner + s*horizontal + t*vertical - origin - offset);
         return r;
     }
     
+    vec3 u, v, w;
     vec3 origin;
+    float lens_radius;
     vec3 lower_left_corner;
     vec3 horizontal;
     vec3 vertical;
@@ -401,26 +421,27 @@ vec3 color(const ray& r, hitable *world, int depth){
     }
 }
 
-
-
 int main(int argc, const char * argv[]) {
-    int nx = 400;
-    int ny = 200;
+    int nx = 600;
+    int ny = 300;
     int ns = 100;
     
     ofstream myfile;
-    myfile.open ("/Users/alexandershevchenko/Desktop/out.ppm");
+    myfile.open ("/Users/alexandershevchenko/Desktop/out1.ppm");
     myfile << "P3\n" << nx << " " << ny << "\n255\n";
     
-    hitable *list[5];
+    hitable *list[4];
     list[0] = new sphere(vec3(0, 0, -1), 0.5, new lambertian(vec3(0.8, 0.3, 0.3)));
     list[1] = new sphere(vec3(0, -100.5, -1), 100, new lambertian(vec3(0.8, 0.8, 0.3)));
     list[2] = new sphere(vec3(1,0,-1), 0.5, new metal(vec3(0.8, 0.6, 1), 0.3));
-    list[3] = new sphere(vec3(-1,0,-1), 0.5, new dielectric(1.5));
-    list[4] = new sphere(vec3(-1,0,-1), -0.49, new dielectric(1.5));
+    list[3] = new sphere(vec3(-1,0,-1), 0.5, new metal(vec3(0.8, 0.6, 1), 0));
     
-    hitable *world = new hitable_list(list, 5);
-    camera cam;
+    hitable *world = new hitable_list(list, 4);
+    vec3 look_from(3, 3, 2);
+    vec3 look_at(0, 0, -1);
+    float aperture = 2.0;
+    float dist_to_focus = (look_from-look_at).length();
+    camera cam(look_from, look_at, vec3(0, 1, 0), 20, float(nx) / float(ny), aperture, dist_to_focus);
     
     for (int j = ny - 1; j >= 0; j--) {
         for (int i = 0; i < nx; i++) {
