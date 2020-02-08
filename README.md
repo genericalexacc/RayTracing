@@ -12,6 +12,6 @@ https://www.realtimerendering.com/raytracing/Ray%20Tracing%20in%20a%20Weekend.pd
 
 Behold my creation :)
 
-HD                         |  Blur
+HD Render                  |  Focal Blur
 :-------------------------:|:-------------------------:
 <img alt="" style="display: inline;" src="https://raw.githubusercontent.com/genericalexacc/RayTracing/master/out/out.jpg" width="500"> | <img alt="" style="display: inline;" src="https://raw.githubusercontent.com/genericalexacc/RayTracing/master/out/out2.jpg" width="500">
