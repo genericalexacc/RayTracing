@@ -14,4 +14,4 @@ Behold my creation :)
 
 HD                         |  Blur
 :-------------------------:|:-------------------------:
-<img alt="Input image" style="display: inline;" src="https://raw.githubusercontent.com/genericalexacc/RayTracing/master/out/out.jpg" width="500"> | src="https://raw.githubusercontent.com/genericalexacc/RayTracing/master/out/out2.jpg" width="500">
+<img alt="" style="display: inline;" src="https://raw.githubusercontent.com/genericalexacc/RayTracing/master/out/out.jpg" width="500"> | <img alt="" style="display: inline;" src="https://raw.githubusercontent.com/genericalexacc/RayTracing/master/out/out2.jpg" width="500">
