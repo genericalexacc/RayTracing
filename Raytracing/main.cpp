@@ -427,7 +427,7 @@ int main(int argc, const char * argv[]) {
     int ns = 100;
     
     ofstream myfile;
-    myfile.open ("/Users/alexandershevchenko/Desktop/out1.ppm");
+    myfile.open ("./out.ppm");
     myfile << "P3\n" << nx << " " << ny << "\n255\n";
     
     hitable *list[4];
