@@ -1,4 +1,4 @@
-# RayTracing
+# RayTracing ✨
 My repo for the ray tracing in a weekend project.
 
 The book is quite short and very interesting.
